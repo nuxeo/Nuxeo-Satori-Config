@@ -1,0 +1,114 @@
+name: Build configuration packages
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # Mondays: has the platform's validator moved since platform-ref.txt was pinned?
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Build every package, and check it, with no install, no registry configuration and no token —
+  # which is the only thing a person editing a package here has, and so the only thing worth
+  # testing. Moved from Nuxeo Satori UI's `config-packages.yml`, with the checks that used to
+  # guard these packages from that repository ported alongside.
+  build:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # No `registry-url:`. Passing one writes an `.npmrc` whose auth line reads $NODE_AUTH_TOKEN,
+      # which is exactly the coupling this job exists to be free of.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      # The claim under test, asserted rather than described.
+      - name: Check this job really has no credentials and no install
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$1"; exit 1; }
+          if [ -d node_modules ]; then
+            fail "node_modules exists: something installed the tree, so this job no longer tests the no-install path"
+          fi
+          for var in NODE_AUTH_TOKEN NPM_TOKEN SATORI_GH_READONLY_TOKEN NPM_PACKAGES_TOKEN GITHUB_PACKAGES_TOKEN; do
+            if [ -n "${!var:-}" ]; then
+              fail "$var is set in this job; the credential-free path must not have one in scope"
+            fi
+          done
+          echo "No node_modules and no token in scope. Node $(node --version)."
+
+      - name: Build every configuration package with Node alone
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          built=0
+          for dir in config-packages/*/; do
+            if [ ! -f "${dir}build.mjs" ]; then continue; fi
+            name=$(basename "$dir")
+            echo "::group::$name"
+            node "${dir}build.mjs" --out "dist/config-packages/$name"
+            zips=("dist/config-packages/$name"/*.zip)
+            if [ ${#zips[@]} -ne 1 ]; then
+              echo "::error::$name produced ${#zips[@]} zip(s), expected exactly 1"
+              exit 1
+            fi
+            node scripts/verify-package-zip.mjs "${zips[0]}"
+            echo "::endgroup::"
+            built=$((built + 1))
+          done
+          if [ "$built" -eq 0 ]; then
+            echo "::error::no config-packages/*/build.mjs was built; this step checked nothing"
+            exit 1
+          fi
+          echo "$built configuration package(s) built and verified with no install and no token."
+
+      # What the server does not check: the development override, the override directory, keys the
+      # application would ignore in silence, and the hosted Beta's viewer. See the script's header.
+      - name: Refuse a package that is unsafe or inert once installed
+        run: node scripts/check-deployable.mjs
+
+      # The platform-owned files — build.mjs and the two schemas — against the Nuxeo Satori UI
+      # commit pinned in platform-ref.txt. A copy edited here goes red; the platform moving does
+      # not, because that is the weekly job's question rather than this pull request's.
+      - name: Platform-owned files match the pinned platform commit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/check-platform-sync.mjs
+
+      - name: Controls for the checks above
+        run: |
+          set -euo pipefail
+          node scripts/verify-package-zip.selftest.mjs
+          node scripts/check-deployable.selftest.mjs
+          node scripts/check-platform-sync.selftest.mjs
+
+  # When this goes red the platform has fixed or added a server-fidelity check since the pin, so a
+  # package built here today could be one the server refuses. The fix is a refresh, not an edit:
+  #   node scripts/check-platform-sync.mjs --refresh --ref main
+  platform-drift:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Platform-owned files match Nuxeo Satori UI main
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/check-platform-sync.mjs --ref main
