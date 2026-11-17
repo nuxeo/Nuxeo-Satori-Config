@@ -1,12 +1,16 @@
 # Nuxeo Satori beta — Nuxeo Satori configuration
 
 The package the hosted Beta environment installs, `https://satori-ui.beta.nuxeocloud.com/`. It
-configures one thing: it points the Annotations tab at the Nuxeo Enhanced Viewer deployed beside it
-at `https://nev-satori.beta.nuxeocloud.com`. Nothing else is overridden — the Beta runs Satori's own
-branding, themes and navigation, so this package adds `integrations.arender.viewerOrigin` and
-nothing more.
+exercises most of what configuration can do, so each kind of change can be checked on a real
+deployment: Acme branding (titles, logo and favicon), an `acme` theme as the default, the language
+list, session timeouts, sign-in endpoints, two presales presets (`claims` and `legal`), relabelled
+navigation entries, a feature toggle, and manifest overrides and slots. It also points the
+Annotations tab at the Nuxeo Enhanced Viewer deployed beside it, at
+`https://nev-satori.beta.nuxeocloud.com`, through `integrations.arender.viewerOrigin`.
 
-Without it the Annotations tab reads "Annotations are not available for this document", which is
+Preset switching is on, so install it on a demo or test server only, never on a customer's server.
+
+Without `viewerOrigin` the Annotations tab reads "Annotations are not available for this document", which is
 the correct and documented behaviour of an unconfigured deployment: `ARENDER_CONFIG` has no
 compiled-in default, by design, so the annotation viewer is off until a bootstrap fragment names a
 viewer ([`docs/arender-setup.md`](https://github.com/nuxeo/Nuxeo-Satori-UI/blob/main/docs/arender-setup.md)
@@ -34,8 +38,9 @@ only as a new version of this package, built from reviewed source.
 | `schema/`                                 | JSON schemas your editor uses to check the fragments as you type     |
 | `build.mjs`                               | Checks the package and writes the installable zip                    |
 
-The keys each fragment accepts are documented in `@nuxeo/satori-platform`'s
-`extension-reference.md`.
+The keys each fragment accepts are documented in the
+[extension reference](https://github.com/nuxeo/Nuxeo-Satori-UI/blob/main/docs/extension-reference.md)
+in Nuxeo Satori UI.
 
 ## Change, build, install
 
@@ -46,8 +51,7 @@ nuxeoctl mp-install dist/satori-beta-<version>.zip   # on the Nuxeo server, then
 ```
 
 Run it in this directory. `build.mjs` needs only Node 20 — nothing to install, no registry token —
-so the package can live in your own repository. In an Nx workspace, `npx nx build satori-beta` runs
-the same script and writes the zip to `dist/config-packages/satori-beta/` at the workspace root instead.
+so the package can live in your own repository.
 
 One limit of the build rather than of the server: a body nested close to the 1000 levels the server
 allows can use up the stack of the Node running the build, which on Windows with Node 20 happens
@@ -163,21 +167,19 @@ the Marketplace instead, so the package has to be published there first — that
 **Publish Configuration Package** workflow does. Dispatch it with this directory's name:
 
 ```bash
-gh workflow run publish-config-package.yml -f package=satori-beta -f publishToPreprod=true
+gh workflow run publish.yml -R nuxeo/Nuxeo-Satori-Config -f package=satori-beta -f publishToPreprod=true
 ```
 
 It builds the zip with the same `build.mjs`, so the published bytes are the ones reviewed here,
 and uploads it to preprod Connect (`nos-preprod-connect.nuxeocloud.com`). Leave
 `publishToPreprod` off to get the zip as a run artifact without publishing anything.
 
-Two things it does **not** do, both deliberate:
+You never edit the version to publish. `package/package.xml` holds the **base** version, and every
+publish is stamped `<base>-<timestamp>-BUILD-<run>`, such as `1.1.0-20261112020624-BUILD-1`, so two
+publishes never collide. Bump the base only when you mean something by it.
 
-- **It does not stamp a version.** `nuxeo-agentic-ui` gets a build timestamp because every merge
-  produces a new one; a configuration package's version is a reviewed property of the source,
-  and it is what `nuxeoctl` compares to decide whether an install is an upgrade. Raise it in
-  `package/package.xml` in the same commit as the change.
-- **It does not publish to production Connect.** `connect.nuxeo.com` is a separate decision with
-  a separate credential, not a flag on this run.
+It does **not** publish to production Connect. `connect.nuxeo.com` is a separate decision with a
+separate credential, not a flag on this run.
 
 `package.xml` declares `<visibility>PRIVATE</visibility>`, as `nuxeo-agentic-ui` does. That does
 **not** hide the listing: on preprod, `nuxeo-agentic-ui` is reachable at
