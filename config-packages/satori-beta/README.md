@@ -42,6 +42,23 @@ The keys each fragment accepts are documented in the
 [extension reference](https://github.com/nuxeo/Nuxeo-Satori-UI/blob/main/docs/extension-reference.md)
 in Nuxeo Satori UI.
 
+## NEV in the View tab (NXSAT-698)
+
+The manifest sets `extensions.slots.tabs` entry `app.tabs.view` to
+`"preferARender": { "type": "core.true" }`. Together with the existing bootstrap
+`integrations.arender.viewerOrigin`, this selects NEV for all eligible documents in the
+packaged View tab, without a MIME-type filter. NEV still needs a usable previewer URL and
+support for the document's format; the rule does not add support for new file formats.
+Notes retain their editor, custom document views retain precedence, and the Annotations
+tab keeps its existing behavior. If no usable NEV URL is available, the packaged viewer
+keeps its standard preview or existing no-preview state.
+
+After merging, publish a new `satori-beta` package through the repository's publishing
+workflow, deploy that version to beta, and restart Nuxeo. Reload Satori and verify View
+with a PDF and an image, then check that a Note still opens its editor. Merging this
+configuration alone does not change the running environment. To turn off the View-tab
+preference, publish and deploy `"preferARender": { "type": "core.false" }` instead.
+
 ## Change, build, install
 
 ```bash

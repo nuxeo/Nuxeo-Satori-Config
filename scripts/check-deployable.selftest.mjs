@@ -109,7 +109,10 @@ control(
   (root) =>
     edit(beta(root, 'bundle/agentic-ui-config/bootstrap.json'), (json) => {
       const value = JSON.parse(json);
-      value.presales.presets.claims.bootstrap.defaultTheme = 'acme';
+      // This negative control must not depend on the hosted beta shipping demo presets.
+      value.presales = {
+        presets: { claims: { bootstrap: { defaultTheme: 'acme' } } },
+      };
       return JSON.stringify(value, null, 2);
     }),
   ['preset "claims".bootstrap', '"defaultTheme"'],
