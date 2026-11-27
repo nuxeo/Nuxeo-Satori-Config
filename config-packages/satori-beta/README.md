@@ -42,22 +42,24 @@ The keys each fragment accepts are documented in the
 [extension reference](https://github.com/nuxeo/Nuxeo-Satori-UI/blob/main/docs/extension-reference.md)
 in Nuxeo Satori UI.
 
-## NEV in the View tab (NXSAT-698)
+## Standard preview in View and NEV in Annotations (NXSAT-698)
 
 The manifest sets `extensions.slots.tabs` entry `app.tabs.view` to
-`"preferARender": { "type": "core.true" }`. Together with the existing bootstrap
-`integrations.arender.viewerOrigin`, this selects NEV for all eligible documents in the
-packaged View tab, without a MIME-type filter. NEV still needs a usable previewer URL and
-support for the document's format; the rule does not add support for new file formats.
-Notes retain their editor, custom document views retain precedence, and the Annotations
-tab keeps its existing behavior. If no usable NEV URL is available, the packaged viewer
-keeps its standard preview or existing no-preview state.
+`"preferARender": { "type": "core.false" }`. This keeps the packaged View tab on the
+standard preview, matching the default Nuxeo Web UI arrangement. The existing bootstrap
+`integrations.arender.viewerOrigin` keeps NEV configured for the Annotations tab. Users
+can open Annotations for NEV and return to View for the standard preview. Each viewer
+still requires support for the document's format; this rule adds no file-format support.
+Notes retain their editor and custom document views retain precedence. A document with
+no supported standard preview keeps the existing no-preview state in View.
 
 After merging, publish a new `satori-beta` package through the repository's publishing
-workflow, deploy that version to beta, and restart Nuxeo. Reload Satori and verify View
-with a PDF and an image, then check that a Note still opens its editor. Merging this
-configuration alone does not change the running environment. To turn off the View-tab
-preference, publish and deploy `"preferARender": { "type": "core.false" }` instead.
+workflow, deploy that version to beta, and restart Nuxeo. Reload Satori and verify that a
+PDF and an image use standard preview in View and NEV in Annotations, then return to View
+and check that the standard preview remains available. Also check that a Note still
+opens its editor. Merging this configuration alone does not change the running environment.
+Administrators who want NEV as the default in View can instead publish and deploy
+`"preferARender": { "type": "core.true" }`; Annotations continues to use NEV in either case.
 
 ## Change, build, install
 

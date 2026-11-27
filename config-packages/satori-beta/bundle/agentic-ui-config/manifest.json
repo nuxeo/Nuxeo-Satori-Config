@@ -7,7 +7,7 @@
         {
           "id": "app.tabs.view",
           "preferARender": {
-            "type": "core.true"
+            "type": "core.false"
           }
         }
       ]
